@@ -89,7 +89,7 @@ export default function NovaPecaPage() {
   };
 
   const generateDescriptionsByStyle = (style: DescriptionStyle, data: any): string[] => {
-    const { name, material, finish, dimensions, price } = data;
+    const { name, material, finish, dimensions } = data;
     const dim = formatDimensions(dimensions);
 
     switch (style) {
@@ -116,6 +116,12 @@ export default function NovaPecaPage() {
           `${name} nasce das mãos e do coração. ${material} se transforma em arte através do ${finish}, revelando texturas e formas que dialogam com a luz e o espaço. ${dim}. Uma peça que respira autenticidade e convida ao toque, ao olhar contemplativo. Arte funcional que habita seu cotidiano.`,
           `Entre o barro e a forma, surge ${name}. ${material} moldado com sensibilidade, ${finish} que acaricia os olhos. ${dim}. Cada curva conta uma história silenciosa, cada imperfeição celebra o humano. Mais que cerâmica, é poesia tátil que transforma espaços em experiências.`
         ];
+      
+      default:
+        return [
+          `${name} em ${material} com acabamento ${finish}. ${dim}. Peça artesanal única.`,
+          `Peça artesanal em ${material}. ${dim}. Acabamento ${finish}.`
+        ];
     }
   };
 
@@ -136,7 +142,6 @@ export default function NovaPecaPage() {
       material: formData.material,
       finish: formData.finish,
       dimensions,
-      price: parseFloat(formData.price) || 0,
     });
 
     setGeneratedDescriptions(descriptions);
@@ -163,78 +168,19 @@ export default function NovaPecaPage() {
       const willHaveMultiplePieces = userPieces.length >= 1;
 
       // Textos melhorados para Instagram
-      const instagramText = `✨ ${formData.name}
-
-${formData.material} trabalhado com ${formData.finish} – uma peça que carrega a essência do artesanal.
-
-Cada detalhe foi pensado para criar algo único, que vai além da funcionalidade e se torna parte da sua história.
-
-🎨 Material: ${formData.material}
-✋ Acabamento: ${formData.finish}
-📏 ${formatDimensions(dimensions)}
-💰 R$ ${parseFloat(formData.price).toFixed(2)}
-
-${willHaveMultiplePieces ? '🔗 Conheça mais peças no catálogo:' : '🔗 Veja todos os detalhes:'}
-${willHaveMultiplePieces ? catalogUrl : pieceUrl}
-
-#ceramicaartesanal #artesanato #feitoamao #ceramista #decoracao #design`;
+      const instagramText = `✨ ${formData.name}\n\n${formData.material} trabalhado com ${formData.finish} – uma peça que carrega a essência do artesanal.\n\nCada detalhe foi pensado para criar algo único, que vai além da funcionalidade e se torna parte da sua história.\n\n🎨 Material: ${formData.material}\n✋ Acabamento: ${formData.finish}\n📏 ${formatDimensions(dimensions)}\n💰 R$ ${parseFloat(formData.price).toFixed(2)}\n\n${willHaveMultiplePieces ? '🔗 Conheça mais peças no catálogo:' : '🔗 Veja todos os detalhes:'}\n${willHaveMultiplePieces ? catalogUrl : pieceUrl}\n\n#ceramicaartesanal #artesanato #feitoamao #ceramista #decoracao #design`;
 
       // Textos melhorados para WhatsApp
-      const whatsappText = `Olá! 👋
-
-Quero compartilhar com você uma peça especial que acabei de criar:
-
-✨ *${formData.name}*
-
-Trabalhada em ${formData.material} com acabamento ${formData.finish}, essa peça nasceu da paixão pela cerâmica e do cuidado com cada detalhe.
-
-📏 Dimensões: ${formatDimensions(dimensions)}
-💰 Investimento: R$ ${parseFloat(formData.price).toFixed(2)}
-
-${willHaveMultiplePieces ? '🔗 Veja esta e outras peças no catálogo:' : '🔗 Veja todos os detalhes:'}
-${willHaveMultiplePieces ? catalogUrl : pieceUrl}
-
-Ficou interessado(a)? Estou à disposição para conversar! 😊`;
+      const whatsappText = `Olá! 👋\n\nQuero compartilhar com você uma peça especial que acabei de criar:\n\n✨ *${formData.name}*\n\nTrabalhada em ${formData.material} com acabamento ${formData.finish}, essa peça nasceu da paixão pela cerâmica e do cuidado com cada detalhe.\n\n📏 Dimensões: ${formatDimensions(dimensions)}\n💰 Investimento: R$ ${parseFloat(formData.price).toFixed(2)}\n\n${willHaveMultiplePieces ? '🔗 Veja esta e outras peças no catálogo:' : '🔗 Veja todos os detalhes:'}\n${willHaveMultiplePieces ? catalogUrl : pieceUrl}\n\nFicou interessado(a)? Estou à disposição para conversar! 😊`;
 
       // Descrição longa melhorada
       const longDescription = generatedDescriptions.length > 0 
         ? generatedDescriptions[selectedDescription]
-        : `${formData.name} é uma peça que nasceu da paixão pela cerâmica artesanal.
+        : `${formData.name} é uma peça que nasceu da paixão pela cerâmica artesanal.\n\n🎨 *História e Inspiração*\nCada curva e textura desta peça conta uma história. Trabalhada em ${formData.material}, ela reflete a busca por formas que dialogam com o cotidiano, trazendo beleza e funcionalidade para o seu dia a dia.\n\n✨ *Sensações e Experiência*\nAo tocar esta peça, você sentirá a autenticidade do trabalho manual. O acabamento ${formData.finish} proporciona uma experiência tátil única, conectando você com a essência do que é feito à mão, com tempo e dedicação.\n\n🏺 *Técnica e Material*\nUtilizando ${formData.material} de alta qualidade, a peça passa por um processo cuidadoso de modelagem e queima. O acabamento ${formData.finish} realça suas características naturais, garantindo durabilidade e beleza que atravessam o tempo.\n\n🏠 *Indicação de Uso*\nPerfeita para quem busca peças únicas que agregam personalidade ao ambiente. Seja como elemento decorativo ou funcional, ${formData.name} se destaca pela sua presença marcante e pela história que carrega.\n\n📏 *Dimensões*\n${formatDimensions(dimensions)}\n\nEsta peça é única e carrega em si o cuidado e a dedicação de quem trabalha com as mãos. Cada imperfeição é uma marca de autenticidade.`;
 
-🎨 *História e Inspiração*
-Cada curva e textura desta peça conta uma história. Trabalhada em ${formData.material}, ela reflete a busca por formas que dialogam com o cotidiano, trazendo beleza e funcionalidade para o seu dia a dia.
-
-✨ *Sensações e Experiência*
-Ao tocar esta peça, você sentirá a autenticidade do trabalho manual. O acabamento ${formData.finish} proporciona uma experiência tátil única, conectando você com a essência do que é feito à mão, com tempo e dedicação.
-
-🏺 *Técnica e Material*
-Utilizando ${formData.material} de alta qualidade, a peça passa por um processo cuidadoso de modelagem e queima. O acabamento ${formData.finish} realça suas características naturais, garantindo durabilidade e beleza que atravessam o tempo.
-
-🏠 *Indicação de Uso*
-Perfeita para quem busca peças únicas que agregam personalidade ao ambiente. Seja como elemento decorativo ou funcional, ${formData.name} se destaca pela sua presença marcante e pela história que carrega.
-
-📏 *Dimensões*
-${formatDimensions(dimensions)}
-
-Esta peça é única e carrega em si o cuidado e a dedicação de quem trabalha com as mãos. Cada imperfeição é uma marca de autenticidade.`;
-
-      const technicalSheet = `FICHA TÉCNICA
-
-Nome: ${formData.name}
-Material: ${formData.material}
-Acabamento: ${formData.finish}
-Dimensões: ${formatDimensions(dimensions)}
-Processo: Modelagem artesanal
-Queima: Controlada
-Características: Peça única, variações naturais
-
-${formData.availability === 'em_estoque' 
-  ? `Disponibilidade: ${formData.quantity} unidade(s) em estoque`
-  : `Disponibilidade: Sob encomenda (${formData.deliveryDays} dias)`}
-
-Preço: R$ ${parseFloat(formData.price).toFixed(2)}
-
-Cada peça é única e pode apresentar pequenas variações devido ao processo artesanal.`;
+      const technicalSheet = `FICHA TÉCNICA\n\nNome: ${formData.name}\nMaterial: ${formData.material}\nAcabamento: ${formData.finish}\nDimensões: ${formatDimensions(dimensions)}\nProcesso: Modelagem artesanal\nQueima: Controlada\nCaracterísticas: Peça única, variações naturais\n\n${formData.availability === 'em_estoque' 
+  ? `Disponibilidade: ${formData.quantity} unidade(s) em estoque\nPrazo de entrega: ${formData.deliveryDays} dias`
+  : `Disponibilidade: Sob encomenda\nPrazo de produção: ${formData.deliveryDays} dias`}\n\nPreço: R$ ${parseFloat(formData.price).toFixed(2)}\n\nCada peça é única e pode apresentar pequenas variações devido ao processo artesanal.`;
 
       const newPiece: Piece = {
         id: `piece_${Date.now()}`,
@@ -247,7 +193,7 @@ Cada peça é única e pode apresentar pequenas variações devido ao processo a
         photo: formData.photo || undefined,
         availability: formData.availability,
         quantity: formData.availability === 'em_estoque' ? parseInt(formData.quantity) : undefined,
-        deliveryDays: formData.availability === 'sob_encomenda' ? parseInt(formData.deliveryDays) : undefined,
+        deliveryDays: parseInt(formData.deliveryDays),
         price: parseFloat(formData.price),
         
         optimizedTitle: formData.name,
@@ -281,7 +227,7 @@ Cada peça é única e pode apresentar pequenas variações devido ao processo a
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push('/painel/pecas')}>
+          <Button variant="ghost" onClick={() => router.push('/painel')}>
             ← Voltar
           </Button>
           <div className="flex items-center gap-2">
@@ -543,22 +489,40 @@ Cada peça é única e pode apresentar pequenas variações devido ao processo a
                 </Select>
               </div>
 
+              {/* CORREÇÃO 5: Campos de quantidade e prazo */}
               {formData.availability === 'em_estoque' ? (
-                <div className="space-y-2">
-                  <Label htmlFor="quantity">Quantidade em Estoque *</Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    placeholder="Ex: 5"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                    required
-                  />
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="quantity">Quantidade em Estoque *</Label>
+                    <Input
+                      id="quantity"
+                      type="number"
+                      min="1"
+                      placeholder="Ex: 5"
+                      value={formData.quantity}
+                      onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="deliveryDays">Prazo de Entrega (dias) *</Label>
+                    <Input
+                      id="deliveryDays"
+                      type="number"
+                      min="1"
+                      placeholder="Ex: 7"
+                      value={formData.deliveryDays}
+                      onChange={(e) => setFormData({ ...formData, deliveryDays: e.target.value })}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      Tempo necessário para envio após a compra
+                    </p>
+                  </div>
+                </>
               ) : (
                 <div className="space-y-2">
-                  <Label htmlFor="deliveryDays">Prazo de Entrega (dias) *</Label>
+                  <Label htmlFor="deliveryDays">Prazo de Produção (dias) *</Label>
                   <Input
                     id="deliveryDays"
                     type="number"
@@ -568,6 +532,9 @@ Cada peça é única e pode apresentar pequenas variações devido ao processo a
                     onChange={(e) => setFormData({ ...formData, deliveryDays: e.target.value })}
                     required
                   />
+                  <p className="text-xs text-gray-500">
+                    Tempo necessário para produzir a peça sob encomenda
+                  </p>
                 </div>
               )}
 
@@ -591,7 +558,7 @@ Cada peça é única e pode apresentar pequenas variações devido ao processo a
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/painel/pecas')}
+                  onClick={() => router.push('/painel')}
                   className="flex-1"
                 >
                   Cancelar

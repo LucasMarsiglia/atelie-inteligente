@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,74 +15,190 @@ export default function Home() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [accountType, setAccountType] = useState<'ceramista' | 'comprador'>('ceramista');
+  const [error, setError] = useState('');
+  const [isClient, setIsClient] = useState(false);
+
+  // ✅ SOLUÇÃO DEFINITIVA: Garantir que TUDO rode apenas no cliente
+  useEffect(() => {
+    setIsClient(true);
+    
+    // Verificar sessão existente
+    const checkSession = () => {
+      try {
+        const existingUser = localStorage.getItem('atelie_user');
+        if (existingUser) {
+          const parsedUser = JSON.parse(existingUser);
+          
+          // Verificar se o usuário ainda existe no banco
+          const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
+          const userStillExists = allUsers.find((u: any) => u.id === parsedUser.id);
+          
+          if (userStillExists) {
+            // Usuário válido, redirecionar
+            if (parsedUser.type === 'ceramista') {
+              if (parsedUser.subscriptionStatus === 'active') {
+                router.push('/painel');
+              } else {
+                router.push('/assinar');
+              }
+            } else {
+              router.push('/catalogo');
+            }
+          } else {
+            // Usuário não existe mais, limpar sessão
+            localStorage.removeItem('atelie_user');
+          }
+        }
+      } catch (error) {
+        // Sessão corrompida, limpar
+        localStorage.removeItem('atelie_user');
+      }
+    };
+
+    checkSession();
+  }, [router]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     
-    if (isLogin) {
-      // LOGIN: Buscar usuário existente
-      const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
-      const existingUser = allUsers.find((u: any) => u.email === email);
-      
-      if (existingUser) {
-        // Usuário encontrado - restaurar sessão
-        localStorage.setItem('atelie_user', JSON.stringify(existingUser));
+    // Validação básica
+    if (!email || !password) {
+      setError('Por favor, preencha todos os campos.');
+      return;
+    }
+    
+    try {
+      if (isLogin) {
+        // LOGIN
+        const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
+        const existingUser = allUsers.find((u: any) => u.email === email);
         
-        // Redirecionar baseado no tipo e status
-        if (existingUser.type === 'ceramista') {
-          if (existingUser.subscriptionStatus === 'active') {
-            router.push('/painel');
+        if (existingUser) {
+          // VALIDAR SENHA
+          if (existingUser.password !== password) {
+            setError('Senha incorreta. Tente novamente.');
+            return;
+          }
+          
+          // LIMPAR sessão anterior
+          localStorage.removeItem('atelie_user');
+          localStorage.removeItem('atelie_current_role');
+          
+          // Obter o ROLE REAL do usuário
+          const userRole = existingUser.role || existingUser.type;
+          
+          // Salvar sessão com timestamp
+          const sessionData = {
+            ...existingUser,
+            lastLogin: new Date().toISOString(),
+          };
+          
+          localStorage.setItem('atelie_user', JSON.stringify(sessionData));
+          
+          // Atualizar último login no banco de usuários
+          const updatedUsers = allUsers.map((u: any) => 
+            u.id === existingUser.id ? sessionData : u
+          );
+          localStorage.setItem('atelie_users', JSON.stringify(updatedUsers));
+          
+          // Redirecionar baseado no ROLE
+          if (userRole === 'ceramista') {
+            if (existingUser.subscriptionStatus === 'active') {
+              router.push('/painel');
+            } else {
+              router.push('/assinar');
+            }
+          } else if (userRole === 'comprador') {
+            router.push('/catalogo');
           } else {
-            router.push('/assinar');
+            setError('Erro ao identificar tipo de conta. Entre em contato com o suporte.');
           }
         } else {
-          router.push('/catalogo');
+          setError('E-mail não cadastrado. Por favor, crie uma conta primeiro.');
         }
       } else {
-        // Usuário não encontrado - criar novo (fallback)
+        // CADASTRO
+        if (!name) {
+          setError('Por favor, preencha seu nome.');
+          return;
+        }
+        
+        const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
+        
+        // Verificar se e-mail já existe
+        const emailExists = allUsers.find((u: any) => u.email === email);
+        if (emailExists) {
+          setError('Este e-mail já está cadastrado. Faça login.');
+          return;
+        }
+        
+        // Verificar se há código de referência (influenciador)
+        const referralCode = localStorage.getItem('atelie_referral_code');
+        let referredBy = null;
+        
+        if (referralCode) {
+          // Buscar influenciador pelo código
+          const influencer = allUsers.find((u: any) => 
+            u.influencerCode === referralCode && u.role === 'ceramista'
+          );
+          
+          if (influencer) {
+            referredBy = influencer.id;
+          }
+          
+          // Limpar código de referência
+          localStorage.removeItem('atelie_referral_code');
+        }
+        
         const newUser = {
           id: `user_${Date.now()}`,
           email,
-          name: email.split('@')[0],
-          type: email.includes('ceramista') ? 'ceramista' : 'comprador',
-          subscriptionStatus: email.includes('ceramista') ? 'pending' : undefined,
+          password,
+          name,
+          role: accountType,
+          type: accountType,
+          subscriptionStatus: accountType === 'ceramista' ? 'pending' : undefined,
           createdAt: new Date().toISOString(),
+          lastLogin: new Date().toISOString(),
+          referredBy: referredBy,
+          influencerCode: accountType === 'ceramista' ? `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}` : undefined,
         };
         
         allUsers.push(newUser);
         localStorage.setItem('atelie_users', JSON.stringify(allUsers));
         localStorage.setItem('atelie_user', JSON.stringify(newUser));
         
-        if (newUser.type === 'ceramista') {
+        // Se foi indicado por alguém, registrar a indicação
+        if (referredBy) {
+          const referrals = JSON.parse(localStorage.getItem('atelie_referrals') || '[]');
+          referrals.push({
+            influencerId: referredBy,
+            referredUserId: newUser.id,
+            referredUserName: newUser.name,
+            referredUserEmail: newUser.email,
+            createdAt: new Date().toISOString(),
+          });
+          localStorage.setItem('atelie_referrals', JSON.stringify(referrals));
+        }
+        
+        // Redirecionar baseado no tipo de conta
+        if (accountType === 'ceramista') {
           router.push('/assinar');
         } else {
           router.push('/catalogo');
         }
       }
-    } else {
-      // CADASTRO: Criar novo usuário
-      const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
-      
-      const newUser = {
-        id: `user_${Date.now()}`,
-        email,
-        name,
-        type: accountType,
-        subscriptionStatus: accountType === 'ceramista' ? 'pending' : undefined,
-        createdAt: new Date().toISOString(),
-      };
-      
-      allUsers.push(newUser);
-      localStorage.setItem('atelie_users', JSON.stringify(allUsers));
-      localStorage.setItem('atelie_user', JSON.stringify(newUser));
-      
-      if (newUser.type === 'ceramista') {
-        router.push('/assinar');
-      } else {
-        router.push('/catalogo');
-      }
+    } catch (err) {
+      console.error('Erro ao processar autenticação:', err);
+      setError('Erro ao processar. Tente novamente.');
     }
   };
+
+  // ✅ RENDERIZAÇÃO CONDICIONAL SIMPLES - Evita hidratação mismatch
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
@@ -227,6 +343,12 @@ export default function Home() {
                   />
                 </div>
 
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700">
                   {isLogin ? 'Entrar' : 'Criar Conta'}
                 </Button>
@@ -234,7 +356,10 @@ export default function Home() {
                 <div className="text-center text-sm">
                   <button
                     type="button"
-                    onClick={() => setIsLogin(!isLogin)}
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setError('');
+                    }}
                     className="text-orange-600 hover:underline"
                   >
                     {isLogin ? 'Não tem conta? Criar agora' : 'Já tem conta? Entrar'}

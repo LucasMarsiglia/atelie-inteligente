@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { Palette, Plus, Edit, ExternalLink, Trash2, Package } from 'lucide-react
 import { Piece } from '@/lib/types';
 import { AVAILABILITY_LABELS } from '@/lib/constants';
 
-export default function PecasPage() {
+function PecasContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [user, setUser] = useState<any>(null);
@@ -234,5 +234,13 @@ export default function PecasPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function PecasPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Carregando...</div>}>
+      <PecasContent />
+    </Suspense>
   );
 }

@@ -4,14 +4,21 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Sparkles, Palette } from 'lucide-react';
+import { Check, Sparkles, Palette, ExternalLink, ArrowLeft } from 'lucide-react';
 import { SUBSCRIPTION_PLAN } from '@/lib/constants';
+
+// Link oficial do Checkout Pro (Assinatura Recorrente)
+const MERCADOPAGO_CHECKOUT_URL = 'https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=adef3b78c42144b0aa70018b30dcbab6';
 
 export default function AssinarPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
     const userData = localStorage.getItem('atelie_user');
     if (!userData) {
       router.push('/');
@@ -28,29 +35,40 @@ export default function AssinarPage() {
   }, [router]);
 
   const handleSubscribe = () => {
-    if (!user) return;
+    if (!mounted || typeof window === 'undefined') return;
     
-    // Mock: ativa assinatura
-    const updatedUser = {
-      ...user,
-      subscriptionStatus: 'active',
-      subscriptionDate: new Date().toISOString(),
-    };
+    setLoading(true);
     
-    // Atualizar usuário na lista de todos os usuários
-    const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
-    const userIndex = allUsers.findIndex((u: any) => u.id === user.id);
-    if (userIndex !== -1) {
-      allUsers[userIndex] = updatedUser;
-      localStorage.setItem('atelie_users', JSON.stringify(allUsers));
+    try {
+      // Salvar informações do usuário para o webhook processar depois
+      localStorage.setItem('atelie_pending_subscription', JSON.stringify({
+        userId: user.id,
+        email: user.email,
+        name: user.name,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // URL de retorno após pagamento (o Mercado Pago redireciona automaticamente)
+      const returnUrl = `${window.location.origin}/pagamento-concluido`;
+      
+      // Redireciona diretamente para o Checkout Pro do Mercado Pago
+      // O link já contém o preapproval_plan_id, apenas adicionamos a URL de retorno
+      window.location.href = `${MERCADOPAGO_CHECKOUT_URL}&back_url=${encodeURIComponent(returnUrl)}`;
+    } catch (error) {
+      console.error('Erro ao processar assinatura:', error);
+      alert('Erro ao processar assinatura. Tente novamente ou entre em contato com o suporte.');
+      setLoading(false);
     }
-    
-    // Atualizar usuário atual
-    localStorage.setItem('atelie_user', JSON.stringify(updatedUser));
-    router.push('/painel');
   };
 
-  if (!user) return null;
+  const handleBackToLogin = () => {
+    // Limpar sessão
+    localStorage.removeItem('atelie_user');
+    // Redirecionar para login
+    router.push('/');
+  };
+
+  if (!mounted || !user) return null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
@@ -63,6 +81,15 @@ export default function AssinarPage() {
               Ateliê Inteligente
             </span>
           </div>
+          
+          <Button
+            variant="ghost"
+            onClick={handleBackToLogin}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar para Login
+          </Button>
         </div>
       </header>
 
@@ -76,7 +103,7 @@ export default function AssinarPage() {
             </div>
             
             <h1 className="text-4xl md:text-5xl font-bold">
-              Escolha seu plano e comece a{' '}
+              Assine e comece a{' '}
               <span className="bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
                 vender mais
               </span>
@@ -94,14 +121,14 @@ export default function AssinarPage() {
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
               
-              <CardTitle className="text-3xl">{SUBSCRIPTION_PLAN.name}</CardTitle>
+              <CardTitle className="text-3xl">Plano Mensal</CardTitle>
               <CardDescription className="text-lg">
                 Tudo que você precisa para começar
               </CardDescription>
               
               <div className="mt-6">
                 <div className="text-5xl font-bold">
-                  R$ {SUBSCRIPTION_PLAN.price.toFixed(2)}
+                  R$ 19,90
                 </div>
                 <div className="text-gray-600 mt-2">por mês</div>
               </div>
@@ -120,17 +147,36 @@ export default function AssinarPage() {
                 ))}
               </div>
 
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm text-blue-900 leading-relaxed">
+                  <strong>📌 Como funciona:</strong>
+                </p>
+                <ul className="text-sm text-blue-800 leading-relaxed space-y-1 ml-4">
+                  <li>• Clique no botão abaixo para ir ao checkout seguro do Mercado Pago</li>
+                  <li>• Complete o pagamento da assinatura mensal de R$ 19,90</li>
+                  <li>• Você será redirecionado automaticamente de volta ao app</li>
+                  <li>• Sua assinatura será ativada e você terá acesso completo</li>
+                  <li>• Cancele quando quiser pelo painel de configurações</li>
+                </ul>
+              </div>
+
               {/* CTA */}
               <div className="pt-6 space-y-4">
                 <Button 
                   onClick={handleSubscribe}
-                  className="w-full h-14 text-lg bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
+                  disabled={loading}
+                  className="w-full h-14 text-lg bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700 flex items-center justify-center gap-2"
                 >
-                  Assinar Agora
+                  {loading ? 'Redirecionando para pagamento...' : (
+                    <>
+                      Assinar por R$ 19,90/mês
+                      <ExternalLink className="w-5 h-5" />
+                    </>
+                  )}
                 </Button>
                 
                 <p className="text-center text-sm text-gray-500">
-                  💳 Nesta versão MVP, a assinatura é simulada para testes
+                  🔒 Pagamento 100% seguro via Mercado Pago
                 </p>
               </div>
             </CardContent>

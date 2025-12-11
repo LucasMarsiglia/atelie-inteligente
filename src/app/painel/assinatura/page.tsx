@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Palette, Check, CreditCard, Calendar, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Palette, Check, CreditCard, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import { SUBSCRIPTION_PLAN } from '@/lib/constants';
 
 export default function AssinaturaPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('atelie_user');
@@ -29,30 +31,67 @@ export default function AssinaturaPage() {
     setUser(parsedUser);
   }, [router]);
 
+  // 🔵 CORREÇÃO 6: Função de cancelamento corrigida e funcional
   const handleCancelSubscription = () => {
-    if (!confirm('Tem certeza que deseja cancelar sua assinatura?')) return;
-    
+    setShowCancelDialog(true);
+  };
+
+  const confirmCancelSubscription = () => {
     if (user) {
       const updatedUser = {
         ...user,
         subscriptionStatus: 'canceled',
+        canceledAt: new Date().toISOString(),
       };
       
+      // Atualizar usuário atual
       localStorage.setItem('atelie_user', JSON.stringify(updatedUser));
+      
+      // Atualizar na lista de usuários
+      const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
+      const updatedUsers = allUsers.map((u: any) => 
+        u.id === user.id ? updatedUser : u
+      );
+      localStorage.setItem('atelie_users', JSON.stringify(updatedUsers));
+      
       setUser(updatedUser);
+      setShowCancelDialog(false);
+      
+      // Mostrar confirmação
+      alert('✅ Assinatura cancelada com sucesso.\n\nVocê perdeu acesso ao painel do ceramista. Suas peças e pedidos foram mantidos caso decida reativar no futuro.');
+      
+      // Redirecionar para página de assinatura
+      router.push('/assinar');
     }
   };
 
+  // 🔵 CORREÇÃO 6: Função de reativação corrigida e funcional
   const handleReactivate = () => {
     if (user) {
       const updatedUser = {
         ...user,
         subscriptionStatus: 'active',
         subscriptionDate: new Date().toISOString(),
+        canceledAt: undefined,
       };
       
+      // Atualizar usuário atual
       localStorage.setItem('atelie_user', JSON.stringify(updatedUser));
+      
+      // Atualizar na lista de usuários
+      const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
+      const updatedUsers = allUsers.map((u: any) => 
+        u.id === user.id ? updatedUser : u
+      );
+      localStorage.setItem('atelie_users', JSON.stringify(updatedUsers));
+      
       setUser(updatedUser);
+      
+      // Mostrar confirmação
+      alert('✅ Assinatura reativada com sucesso!\n\nVocê já pode acessar todas as funcionalidades do painel do ceramista.');
+      
+      // Redirecionar para painel
+      router.push('/painel');
     }
   };
 
@@ -233,8 +272,64 @@ export default function AssinaturaPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Suporte / Fale Conosco */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-purple-600" />
+                Suporte / Fale Conosco
+              </CardTitle>
+              <CardDescription>
+                Precisa de ajuda? Entre em contato com nossa equipe
+              </CardDescription>
+            </CardHeader>
+            
+            <CardContent>
+              <Button
+                onClick={() => router.push('/suporte')}
+                variant="outline"
+                className="w-full"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Abrir Formulário de Suporte
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </main>
+
+      {/* 🔵 CORREÇÃO 6: Dialog de confirmação de cancelamento funcional */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar Assinatura</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja cancelar sua assinatura?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-gray-600">
+              Ao cancelar, você perderá acesso imediato ao painel do ceramista e todas as funcionalidades premium. 
+              Suas peças e pedidos serão mantidos caso decida reativar no futuro.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(false)}
+            >
+              Manter Assinatura
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmCancelSubscription}
+            >
+              Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

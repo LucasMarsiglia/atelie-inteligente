@@ -1,125 +1,94 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Palette, Share2, Instagram, MessageCircle, ShoppingCart, Package, Copy, Check, ArrowLeft } from 'lucide-react';
-import { Piece } from '@/lib/types';
-import { AVAILABILITY_LABELS } from '@/lib/constants';
-import { formatDimensions } from '@/lib/mock-data';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowLeft, ShoppingCart, Package, Check } from 'lucide-react';
+import type { Piece, User } from '@/lib/types';
 
-export default function PecaPublicaPage() {
+export default function PecaPage() {
   const router = useRouter();
   const params = useParams();
+  const [user, setUser] = useState<User | null>(null);
   const [piece, setPiece] = useState<Piece | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [copiedText, setCopiedText] = useState<string>('');
-  const [showInstagramText, setShowInstagramText] = useState(false);
-  const [showWhatsAppText, setShowWhatsAppText] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [orderType, setOrderType] = useState<'compra' | 'encomenda' | null>(null);
 
   useEffect(() => {
-    const slug = params.slug as string;
-    const allPieces = JSON.parse(localStorage.getItem('atelie_pieces') || '[]');
-    const foundPiece = allPieces.find((p: Piece) => p.slug === slug);
-    
-    if (foundPiece) {
-      setPiece(foundPiece);
+    // Verificar autenticação
+    const userData = localStorage.getItem('atelie_user');
+    if (!userData) {
+      router.push('/');
+      return;
     }
-  }, [params]);
 
-  const handleCopyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const parsedUser = JSON.parse(userData);
+    setUser(parsedUser);
+
+    // Carregar peça
+    const allPieces = JSON.parse(localStorage.getItem('atelie_pieces') || '[]');
+    const foundPiece = allPieces.find((p: Piece) => p.slug === params.slug);
+    
+    if (!foundPiece) {
+      router.push('/catalogo');
+      return;
+    }
+
+    setPiece(foundPiece);
+  }, [params.slug, router]);
+
+  const handleOrder = (type: 'compra' | 'encomenda') => {
+    setOrderType(type);
+    setShowConfirmation(true);
   };
 
-  const handleCopyText = (text: string, type: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedText(type);
-    setTimeout(() => setCopiedText(''), 2000);
+  const confirmOrder = () => {
+    // Aqui seria a lógica de criar o pedido
+    // Por enquanto, apenas mostramos confirmação
+    alert(`Pedido ${orderType === 'compra' ? 'de compra' : 'de encomenda'} confirmado! Em breve você receberá mais informações.`);
+    setShowConfirmation(false);
+    router.push('/catalogo');
   };
 
-  const handleBack = () => {
-    router.push('/painel/pecas');
-  };
-
-  if (!piece) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50 flex items-center justify-center">
-        <Card>
-          <CardHeader>
-            <CardTitle>Peça não encontrada</CardTitle>
-            <CardDescription>Esta peça não existe ou foi removida</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
+  if (!piece || !user) {
+    return null;
   }
 
-  const publicUrl = typeof window !== 'undefined' ? window.location.href : '';
-  const catalogUrl = typeof window !== 'undefined' ? `${window.location.origin}/catalogo` : '';
+  // 🔵 CORREÇÃO 1: Verificar se o usuário é o próprio ceramista
+  const isOwner = user.id === piece.ceramistaId;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
-            </Button>
-            <div className="flex items-center gap-2">
-              <Palette className="w-8 h-8 text-orange-600" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-pink-600 bg-clip-text text-transparent">
-                Ateliê Inteligente
-              </span>
-            </div>
-          </div>
-          
+        <div className="container mx-auto px-4 py-4">
           <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCopyLink}
+            variant="ghost"
+            onClick={() => router.push('/catalogo')}
+            className="flex items-center gap-2"
           >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 mr-2" />
-                Copiado!
-              </>
-            ) : (
-              <>
-                <Share2 className="w-4 h-4 mr-2" />
-                Compartilhar
-              </>
-            )}
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Catálogo
           </Button>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="grid lg:grid-cols-2 gap-8">
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Imagem */}
-          <div>
+          <div className="space-y-4">
             {piece.photo ? (
-              <img 
-                src={piece.photo} 
-                alt={piece.name}
-                className="w-full aspect-square object-cover rounded-2xl shadow-2xl"
-              />
+              <div className="aspect-square bg-gray-100 rounded-2xl overflow-hidden">
+                <img
+                  src={piece.photo}
+                  alt={piece.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             ) : (
-              <div className="w-full aspect-square bg-gradient-to-br from-orange-100 to-pink-100 rounded-2xl shadow-2xl flex items-center justify-center">
-                <Palette className="w-24 h-24 text-orange-300" />
+              <div className="aspect-square bg-gray-100 rounded-2xl flex items-center justify-center">
+                <Package className="w-24 h-24 text-gray-400" />
               </div>
             )}
           </div>
@@ -127,225 +96,154 @@ export default function PecaPublicaPage() {
           {/* Informações */}
           <div className="space-y-6">
             <div>
-              <Badge className="mb-4">
-                {AVAILABILITY_LABELS[piece.availability]}
-              </Badge>
-              
-              <h1 className="text-4xl font-bold mb-4">{piece.optimizedTitle}</h1>
-              
-              <p className="text-xl text-gray-600 mb-6">
-                {piece.shortDescription}
-              </p>
-              
-              <div className="text-4xl font-bold text-orange-600 mb-6">
+              <h1 className="text-4xl font-bold mb-2">{piece.optimizedTitle || piece.name}</h1>
+              <p className="text-xl text-gray-600">{piece.shortDescription}</p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <span className="text-4xl font-bold text-pink-600">
                 R$ {piece.price.toFixed(2)}
-              </div>
+              </span>
+              <span className={`px-4 py-2 rounded-full text-sm font-medium ${
+                piece.availability === 'em_estoque'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-orange-100 text-orange-700'
+              }`}>
+                {piece.availability === 'em_estoque' ? 'Disponível em estoque' : 'Sob encomenda'}
+              </span>
             </div>
 
-            {/* Status */}
-            {piece.availability === 'em_estoque' && piece.quantity && (
-              <div className="flex items-center gap-2 text-green-600">
-                <Package className="w-5 h-5" />
-                <span className="font-medium">
-                  {piece.quantity} {piece.quantity === 1 ? 'unidade disponível' : 'unidades disponíveis'}
-                </span>
-              </div>
-            )}
-            
-            {piece.availability === 'sob_encomenda' && piece.deliveryDays && (
-              <div className="flex items-center gap-2 text-blue-600">
-                <Package className="w-5 h-5" />
-                <span className="font-medium">
-                  Prazo de entrega: {piece.deliveryDays} dias
-                </span>
-              </div>
-            )}
+            {/* Descrição Longa */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Sobre a Peça</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700 whitespace-pre-line">{piece.longDescription}</p>
+              </CardContent>
+            </Card>
 
-            {/* CTAs */}
-            <div className="space-y-3">
-              {piece.status === 'active' && (
-                <Button 
-                  onClick={() => router.push(`/checkout/${piece.id}`)}
-                  className="w-full h-14 text-lg bg-gradient-to-r from-orange-600 to-pink-600 hover:from-orange-700 hover:to-pink-700"
-                >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  {piece.availability === 'em_estoque' ? 'Comprar Agora' : 'Solicitar Encomenda'}
-                </Button>
-              )}
-              
-              {piece.status === 'sold' && (
-                <div className="text-center py-4 text-gray-600">
-                  Esta peça já foi vendida
+            {/* Ficha Técnica */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Ficha Técnica</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Dimensões</span>
+                    <p className="font-medium">
+                      {piece.dimensions.height}cm × {piece.dimensions.width}cm × {piece.dimensions.depth}cm
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Material</span>
+                    <p className="font-medium">{piece.material}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Acabamento</span>
+                    <p className="font-medium">{piece.finish}</p>
+                  </div>
+                  {piece.deliveryDays && (
+                    <div>
+                      <span className="text-sm text-gray-600">
+                        {piece.availability === 'sob_encomenda' ? 'Tempo de Produção' : 'Prazo de Entrega'}
+                      </span>
+                      <p className="font-medium">{piece.deliveryDays} dias</p>
+                    </div>
+                  )}
+                  {piece.availability === 'em_estoque' && piece.quantity && (
+                    <div>
+                      <span className="text-sm text-gray-600">Estoque</span>
+                      <p className="font-medium">{piece.quantity} unidade(s)</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* Links de Divulgação */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-lg">Links de Divulgação</h3>
-              
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="pt-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Link desta peça:</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={publicUrl} 
-                        readOnly 
-                        className="text-sm"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText(publicUrl);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
+                {piece.technicalSheet && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm text-gray-700 whitespace-pre-line">{piece.technicalSheet}</p>
                   </div>
-                  
-                  <div className="space-y-2 mt-4">
-                    <Label className="text-sm font-medium">Link do catálogo completo:</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        value={catalogUrl} 
-                        readOnly 
-                        className="text-sm"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          navigator.clipboard.writeText(catalogUrl);
-                          setCopied(true);
-                          setTimeout(() => setCopied(false), 2000);
-                        }}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+            </Card>
 
-            <Separator />
-
-            {/* Compartilhamento */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Compartilhar</h3>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowInstagramText(!showInstagramText)}
-                >
-                  <Instagram className="w-4 h-4 mr-2" />
-                  Instagram
-                </Button>
+            {/* 🔵 CORREÇÃO 1: Botões de Ação - APENAS para compradores */}
+            {!isOwner && (
+              <div className="space-y-3">
+                {piece.availability === 'em_estoque' && (
+                  <Button
+                    onClick={() => handleOrder('compra')}
+                    className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 h-12 text-lg"
+                  >
+                    <ShoppingCart className="w-5 h-5 mr-2" />
+                    Comprar Agora
+                  </Button>
+                )}
                 
                 <Button
+                  onClick={() => handleOrder('encomenda')}
                   variant="outline"
-                  onClick={() => setShowWhatsAppText(!showWhatsAppText)}
+                  className="w-full h-12 text-lg border-2 border-pink-600 text-pink-600 hover:bg-pink-50"
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  WhatsApp
+                  <Package className="w-5 h-5 mr-2" />
+                  Solicitar Encomenda
                 </Button>
               </div>
+            )}
 
-              {showInstagramText && (
-                <Card className="bg-purple-50 border-purple-200">
-                  <CardHeader>
-                    <CardTitle className="text-sm">Texto para Instagram</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <pre className="whitespace-pre-wrap text-sm mb-4 font-sans">{piece.instagramText}</pre>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopyText(piece.instagramText, 'instagram')}
-                    >
-                      {copiedText === 'instagram' ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Copiado!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copiar Texto
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {showWhatsAppText && (
-                <Card className="bg-green-50 border-green-200">
-                  <CardHeader>
-                    <CardTitle className="text-sm">Texto para WhatsApp</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <pre className="whitespace-pre-wrap text-sm mb-4 font-sans">{piece.whatsappText}</pre>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopyText(piece.whatsappText, 'whatsapp')}
-                    >
-                      {copiedText === 'whatsapp' ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Copiado!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copiar Texto
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+            {/* Mensagem para o ceramista */}
+            {isOwner && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="pt-6">
+                  <p className="text-sm text-blue-700 text-center">
+                    Esta é sua peça. Compartilhe o link com seus clientes para que eles possam fazer pedidos.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </div>
-        </div>
-
-        {/* Descrição Detalhada */}
-        <div className="mt-12 grid md:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Sobre a Peça</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700 whitespace-pre-wrap">{piece.longDescription}</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Ficha Técnica</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <pre className="text-sm text-gray-700 whitespace-pre-wrap">{piece.technicalSheet}</pre>
-            </CardContent>
-          </Card>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t mt-24 py-8 bg-white/50">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>Criado com Ateliê Inteligente - Plataforma para Ceramistas</p>
+      {/* Modal de Confirmação */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Check className="w-6 h-6 text-green-600" />
+                Confirmar {orderType === 'compra' ? 'Compra' : 'Encomenda'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-gray-700">
+                Você está prestes a {orderType === 'compra' ? 'comprar' : 'encomendar'} a peça:
+              </p>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="font-semibold">{piece.optimizedTitle || piece.name}</p>
+                <p className="text-2xl font-bold text-pink-600 mt-2">
+                  R$ {piece.price.toFixed(2)}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => setShowConfirmation(false)}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={confirmOrder}
+                  className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+                >
+                  Confirmar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
-      </footer>
+      )}
     </div>
   );
 }
