@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Palette, ShoppingBag, Sparkles } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';  // Importando o client do Supabase
 
 export default function Home() {
   const router = useRouter();
@@ -18,10 +19,9 @@ export default function Home() {
   const [error, setError] = useState('');
   const [isClient, setIsClient] = useState(false);
 
-  // ✅ SOLUÇÃO DEFINITIVA: Garantir que TUDO rode apenas no cliente
   useEffect(() => {
     setIsClient(true);
-    
+
     // Verificar sessão existente
     const checkSession = () => {
       try {
@@ -58,7 +58,7 @@ export default function Home() {
     checkSession();
   }, [router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     
@@ -71,51 +71,39 @@ export default function Home() {
     try {
       if (isLogin) {
         // LOGIN
-        const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
-        const existingUser = allUsers.find((u: any) => u.email === email);
-        
-        if (existingUser) {
-          // VALIDAR SENHA
-          if (existingUser.password !== password) {
-            setError('Senha incorreta. Tente novamente.');
-            return;
-          }
-          
-          // LIMPAR sessão anterior
-          localStorage.removeItem('atelie_user');
-          localStorage.removeItem('atelie_current_role');
-          
-          // Obter o ROLE REAL do usuário
-          const userRole = existingUser.role || existingUser.type;
-          
-          // Salvar sessão com timestamp
-          const sessionData = {
-            ...existingUser,
-            lastLogin: new Date().toISOString(),
-          };
-          
-          localStorage.setItem('atelie_user', JSON.stringify(sessionData));
-          
-          // Atualizar último login no banco de usuários
-          const updatedUsers = allUsers.map((u: any) => 
-            u.id === existingUser.id ? sessionData : u
-          );
-          localStorage.setItem('atelie_users', JSON.stringify(updatedUsers));
-          
-          // Redirecionar baseado no ROLE
-          if (userRole === 'ceramista') {
-            if (existingUser.subscriptionStatus === 'active') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          setError('Senha incorreta. Tente novamente.');
+          return;
+        }
+
+        // Verificar dados do usuário
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user?.id)
+          .single();
+
+        if (profileData) {
+          localStorage.setItem('atelie_user', JSON.stringify(data.user));
+          localStorage.setItem('atelie_current_role', profileData.role);
+
+          // Redirecionar com base no role
+          if (profileData.role === 'ceramista') {
+            if (profileData.plan === 'paid') {
               router.push('/painel');
             } else {
               router.push('/assinar');
             }
-          } else if (userRole === 'comprador') {
-            router.push('/catalogo');
           } else {
-            setError('Erro ao identificar tipo de conta. Entre em contato com o suporte.');
+            router.push('/catalogo');
           }
         } else {
-          setError('E-mail não cadastrado. Por favor, crie uma conta primeiro.');
+          setError('Usuário não encontrado nos perfis.');
         }
       } else {
         // CADASTRO
@@ -123,65 +111,35 @@ export default function Home() {
           setError('Por favor, preencha seu nome.');
           return;
         }
-        
-        const allUsers = JSON.parse(localStorage.getItem('atelie_users') || '[]');
-        
-        // Verificar se e-mail já existe
-        const emailExists = allUsers.find((u: any) => u.email === email);
-        if (emailExists) {
-          setError('Este e-mail já está cadastrado. Faça login.');
-          return;
-        }
-        
-        // Verificar se há código de referência (influenciador)
-        const referralCode = localStorage.getItem('atelie_referral_code');
-        let referredBy = null;
-        
-        if (referralCode) {
-          // Buscar influenciador pelo código
-          const influencer = allUsers.find((u: any) => 
-            u.influencerCode === referralCode && u.role === 'ceramista'
-          );
-          
-          if (influencer) {
-            referredBy = influencer.id;
-          }
-          
-          // Limpar código de referência
-          localStorage.removeItem('atelie_referral_code');
-        }
-        
-        const newUser = {
-          id: `user_${Date.now()}`,
+
+        const { data: userData, error: authError } = await supabase.auth.signUp({
           email,
           password,
-          name,
-          role: accountType,
-          type: accountType,
-          subscriptionStatus: accountType === 'ceramista' ? 'pending' : undefined,
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-          referredBy: referredBy,
-          influencerCode: accountType === 'ceramista' ? `${name.toLowerCase().replace(/\s+/g, '-')}-${Date.now().toString().slice(-6)}` : undefined,
-        };
-        
-        allUsers.push(newUser);
-        localStorage.setItem('atelie_users', JSON.stringify(allUsers));
-        localStorage.setItem('atelie_user', JSON.stringify(newUser));
-        
-        // Se foi indicado por alguém, registrar a indicação
-        if (referredBy) {
-          const referrals = JSON.parse(localStorage.getItem('atelie_referrals') || '[]');
-          referrals.push({
-            influencerId: referredBy,
-            referredUserId: newUser.id,
-            referredUserName: newUser.name,
-            referredUserEmail: newUser.email,
-            createdAt: new Date().toISOString(),
-          });
-          localStorage.setItem('atelie_referrals', JSON.stringify(referrals));
+        });
+
+        if (authError) {
+          setError(authError.message);
+          return;
         }
-        
+
+        // Criar o perfil no banco de dados
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userData.user?.id,
+              email,
+              full_name: name,
+              role: accountType,
+              plan: 'free',
+            },
+          ]);
+
+        if (profileError) {
+          setError('Erro ao criar perfil no banco.');
+          return;
+        }
+
         // Redirecionar baseado no tipo de conta
         if (accountType === 'ceramista') {
           router.push('/assinar');
@@ -195,7 +153,6 @@ export default function Home() {
     }
   };
 
-  // ✅ RENDERIZAÇÃO CONDICIONAL SIMPLES - Evita hidratação mismatch
   if (!isClient) {
     return null;
   }
@@ -370,46 +327,13 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Features */}
-        <div className="mt-24 grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-pink-500 mx-auto flex items-center justify-center">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold">IA Integrada</h3>
-            <p className="text-gray-600">
-              Textos profissionais gerados automaticamente para suas peças
-            </p>
+        {/* Footer */}
+        <footer className="border-t mt-24 py-8 bg-white/50">
+          <div className="container mx-auto px-4 text-center text-gray-600">
+            <p>© 2024 Ateliê Inteligente - Transformando arte em negócio</p>
           </div>
-          
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 mx-auto flex items-center justify-center">
-              <ShoppingBag className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold">Vendas Simplificadas</h3>
-            <p className="text-gray-600">
-              Checkout integrado e gestão completa de pedidos
-            </p>
-          </div>
-          
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 mx-auto flex items-center justify-center">
-              <Palette className="w-8 h-8 text-white" />
-            </div>
-            <h3 className="text-xl font-semibold">Páginas Públicas</h3>
-            <p className="text-gray-600">
-              Compartilhe suas peças no Instagram e WhatsApp facilmente
-            </p>
-          </div>
-        </div>
+        </footer>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t mt-24 py-8 bg-white/50">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          <p>© 2024 Ateliê Inteligente - Transformando arte em negócio</p>
-        </div>
-      </footer>
     </div>
   );
 }
